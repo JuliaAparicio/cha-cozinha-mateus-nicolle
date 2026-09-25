@@ -18,6 +18,35 @@ export default function PresentesPage({
   onVoltar,
   onAbrirEscolha,
 }: PresentesPageProps) {
+  // Organiza os presentes por prioridade.
+  // 1º - Quadro do Palmeiras
+  // 2º - Porta-Chave do Palmeiras
+  // 3º em diante - restante dos presentes na ordem original
+  const presentesOrdenados = [...presentes].sort((a, b) => {
+    const getPrioridade = (nome: string) => {
+      const nomeNormalizado = nome.toLowerCase();
+
+      if (
+        nomeNormalizado.includes("quadro") &&
+        nomeNormalizado.includes("palmeiras")
+      ) {
+        return 1;
+      }
+
+      if (
+        nomeNormalizado.includes("porta") &&
+        nomeNormalizado.includes("chave") &&
+        nomeNormalizado.includes("palmeiras")
+      ) {
+        return 2;
+      }
+
+      return 3;
+    };
+
+    return getPrioridade(a.nome) - getPrioridade(b.nome);
+  });
+
   return (
     <main className="min-h-screen bg-[#f7f4ef] px-4 py-8 text-[#2f2f2f] sm:px-6 sm:py-10">
       <div className="mx-auto max-w-6xl">
@@ -40,19 +69,12 @@ export default function PresentesPage({
 
         {/* Lista de presentes */}
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
-          {presentes.map((presente) => {
-            const reservado =
-              presentesReservados.includes(
-                presente.id
-              );
+          {presentesOrdenados.map((presente) => {
+            const reservado = presentesReservados.includes(presente.id);
 
-            const meuPresente =
-              minhasReservas.includes(
-                presente.id
-              );
+            const meuPresente = minhasReservas.includes(presente.id);
 
-            const bloqueado =
-              reservado && !meuPresente;
+            const bloqueado = reservado && !meuPresente;
 
             return (
               <div
@@ -64,14 +86,17 @@ export default function PresentesPage({
                 }`}
               >
                 {/* Imagem */}
-                <div className="relative h-40 w-full bg-[#f5f5f5] sm:h-64">
+                <div className="relative h-64 w-full bg-[#f5f5f5]">
                   <Image
                     src={presente.imagem}
                     alt={presente.nome}
                     fill
-                    className="object-contain p-3 transition duration-300 group-hover:scale-[1.02] sm:p-5"
+                    unoptimized
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 400px"
+                    className="object-contain p-5 transition duration-300 group-hover:scale-[1.02]"
                   />
 
+                  {/* Presente reservado por outra pessoa */}
                   {bloqueado && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30 px-2">
                       <span className="rounded-full bg-white px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.08em] text-[#333] sm:px-5 sm:py-2 sm:text-xs sm:tracking-[0.15em]">
@@ -80,6 +105,7 @@ export default function PresentesPage({
                     </div>
                   )}
 
+                  {/* Presente escolhido pelo próprio usuário */}
                   {meuPresente && (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#1E5631]/20 px-2">
                       <span className="rounded-full bg-white px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.08em] text-[#1E5631] sm:px-5 sm:py-2 sm:text-xs sm:tracking-[0.15em]">
@@ -115,11 +141,7 @@ export default function PresentesPage({
                   {/* Botão */}
                   <button
                     type="button"
-                    onClick={() =>
-                      onAbrirEscolha(
-                        presente
-                      )
-                    }
+                    onClick={() => onAbrirEscolha(presente)}
                     disabled={bloqueado}
                     className={`mt-4 w-full rounded-full px-3 py-2 text-[11px] font-medium transition sm:mt-6 sm:px-5 sm:py-3 sm:text-sm ${
                       bloqueado
