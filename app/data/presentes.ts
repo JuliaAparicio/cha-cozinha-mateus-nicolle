@@ -1,0 +1,60 @@
+import { Presente } from "../types/presente";
+
+export const presentes: Presente[] = [
+  {
+    id: 1,
+    nome: "Afiador de Facas",
+    descricao: "Afiador de facas para a cozinha.",
+    imagem: "/presentes/afiador-facas.jpeg",
+    cor: "Preto",
+    observacao: "Escolher na cor preta.",
+  },
+  {
+    id: 2,
+    nome: "Kit Formas Assadeiras Antiaderente",
+    descricao: "Kit de formas e assadeiras.",
+    imagem: "/presentes/formas.jpeg",
+    cor: "Preto",
+    observacao: "Preferencialmente na cor preta.",
+  },
+  {
+    id: 3,
+    nome: "Jogo de Bowls Inox 5 Peças",
+    descricao: "Jogo com 5 bowls de inox.",
+    imagem: "/presentes/bowls.jpeg",
+    cor: "Inox",
+    observacao: "",
+  },
+  {
+    id: 4,
+    nome: "Batedor manual/fouet",
+    descricao: "Batedor manual para preparos na cozinha.",
+    imagem: "/presentes/fouet.jpeg",
+    cor: "Madeira e Preto",
+    observacao: "",
+  },
+  {
+    id: 5,
+    nome: "Centrífuga de salada",
+    descricao: "Centrífuga para lavar e secar saladas.",
+    imagem: "/presentes/centrifuga.jpeg",
+    cor: "Preto",
+    observacao: "",
+  },
+  {
+    id: 6,
+    nome: "Coador Filtro De Café Inox - P",
+    descricao: "Coador de café em inox.",
+    imagem: "/presentes/coador.jpeg",
+    cor: "Inox",
+    observacao: "",
+  },
+  {
+    id: 7,
+    nome: "Medidores - Colher e Xícara",
+    descricao: "",
+    imagem: "/presentes/Medidores colheres e xicaras.jpg",
+    cor: "",
+    observacao: "",
+  },
+];
