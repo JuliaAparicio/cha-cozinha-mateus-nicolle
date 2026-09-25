@@ -25,7 +25,6 @@ export async function configurarPresentes() {
       await setDoc(presenteRef, {
         nome: presente.nome,
         imagem: presente.imagem,
-        linkCompra: presente.linkCompra,
         reservado: false,
       });
     }
