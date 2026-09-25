@@ -10,12 +10,7 @@ import {
   initializeApp,
 } from "firebase-admin/app";
 
-const serviceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-};
-
+export const dynamic = "force-dynamic";
 
 /*
  * ============================================================
@@ -23,23 +18,42 @@ const serviceAccount = {
  * ============================================================
  */
 
-const app =
-  getApps().length === 0
-    ? initializeApp({
-        credential: cert(
-          serviceAccount as {
-            projectId?: string;
-            clientEmail?: string;
-            privateKey?: string;
-          }
+function obterFirebaseAdmin() {
+  if (getApps().length > 0) {
+    return getApps()[0];
+  }
+
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID;
+
+  const clientEmail =
+    process.env.FIREBASE_CLIENT_EMAIL;
+
+  const privateKey =
+    process.env.FIREBASE_PRIVATE_KEY;
+
+  if (
+    !projectId ||
+    !clientEmail ||
+    !privateKey
+  ) {
+    throw new Error(
+      "Variáveis do Firebase Admin não configuradas."
+    );
+  }
+
+  return initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey:
+        privateKey.replace(
+          /\\n/g,
+          "\n"
         ),
-      })
-    : getApps()[0];
-
-
-const adminAuth =
-  getAuth(app);
-
+    }),
+  });
+}
 
 /*
  * ============================================================
@@ -50,11 +64,22 @@ const adminAuth =
 export async function POST(
   request: Request
 ) {
-
   try {
+    /*
+     * Inicializamos o Firebase somente quando
+     * a rota realmente receber uma requisição.
+     */
+
+    const firebaseAdmin =
+      obterFirebaseAdmin();
+
+    const adminAuth =
+      getAuth(firebaseAdmin);
 
     /*
-     * Pegamos o token enviado pelo navegador.
+     * ========================================================
+     * PEGAR TOKEN
+     * ========================================================
      */
 
     const autorizacao =
@@ -62,18 +87,17 @@ export async function POST(
         "authorization"
       );
 
-
     if (
       !autorizacao ||
       !autorizacao.startsWith(
         "Bearer "
       )
     ) {
-
       return NextResponse.json(
         {
           autorizado: false,
-          erro: "NAO_AUTENTICADO",
+          erro:
+            "NAO_AUTENTICADO",
         },
         {
           status: 401,
@@ -81,22 +105,19 @@ export async function POST(
       );
     }
 
-
     /*
-     * Extraímos somente o token.
+     * ========================================================
+     * EXTRAIR TOKEN
+     * ========================================================
      */
 
     const token =
-      autorizacao.replace(
-        "Bearer ",
-        ""
-      );
-
+      autorizacao.substring(7);
 
     /*
-     * O Firebase verifica se o token
-     * realmente pertence a um usuário
-     * autenticado.
+     * ========================================================
+     * VALIDAR TOKEN NO FIREBASE
+     * ========================================================
      */
 
     const usuario =
@@ -104,27 +125,25 @@ export async function POST(
         token
       );
 
-
     /*
-     * UID do administrador definido
-     * no ambiente do servidor.
+     * ========================================================
+     * VERIFICAR UID DO ADMINISTRADOR
+     * ========================================================
      */
 
     const adminUid =
       process.env.ADMIN_UID;
 
-
     if (!adminUid) {
-
       console.error(
         "ADMIN_UID não configurado."
       );
 
-
       return NextResponse.json(
         {
           autorizado: false,
-          erro: "ADMIN_NAO_CONFIGURADO",
+          erro:
+            "ADMIN_NAO_CONFIGURADO",
         },
         {
           status: 500,
@@ -132,20 +151,20 @@ export async function POST(
       );
     }
 
-
     /*
-     * Comparamos o UID da pessoa logada
-     * com o UID autorizado.
+     * ========================================================
+     * COMPARAR UID
+     * ========================================================
      */
 
     if (
       usuario.uid !== adminUid
     ) {
-
       return NextResponse.json(
         {
           autorizado: false,
-          erro: "ACESSO_NEGADO",
+          erro:
+            "ACESSO_NEGADO",
         },
         {
           status: 403,
@@ -153,25 +172,21 @@ export async function POST(
       );
     }
 
-
     /*
-     * Se chegou até aqui,
-     * é o administrador.
+     * ========================================================
+     * ADMINISTRADOR AUTORIZADO
+     * ========================================================
      */
 
-    return NextResponse.json(
-      {
-        autorizado: true,
-      }
-    );
+    return NextResponse.json({
+      autorizado: true,
+    });
 
   } catch (erro) {
-
     console.error(
       "Erro ao verificar administrador:",
       erro
     );
-
 
     return NextResponse.json(
       {

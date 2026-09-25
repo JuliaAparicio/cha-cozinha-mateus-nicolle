@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import path from "path";
 
 import {
   cert,
@@ -8,44 +6,63 @@ import {
   initializeApp,
 } from "firebase-admin/app";
 
-import {
-  getAuth,
-} from "firebase-admin/auth";
+import { getAuth } from "firebase-admin/auth";
 
 import {
   getFirestore,
   FieldValue,
 } from "firebase-admin/firestore";
 
+export const dynamic = "force-dynamic";
+
+/*
+ * ============================================================
+ * INICIALIZAÇÃO DO FIREBASE ADMIN
+ * ============================================================
+ */
 
 function obterFirebaseAdmin() {
   if (getApps().length > 0) {
     return getApps()[0];
   }
 
-   const serviceAccount = {
-     projectId: process.env.FIREBASE_PROJECT_ID,
-     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-     privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-   };
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID;
+
+  const clientEmail =
+    process.env.FIREBASE_CLIENT_EMAIL;
+
+  const privateKey =
+    process.env.FIREBASE_PRIVATE_KEY;
+
+  if (
+    !projectId ||
+    !clientEmail ||
+    !privateKey
+  ) {
+    throw new Error(
+      "Variáveis do Firebase Admin não configuradas."
+    );
+  }
 
   return initializeApp({
-    credential: cert(
-      serviceAccount
-    ),
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey:
+        privateKey.replace(
+          /\\n/g,
+          "\n"
+        ),
+    }),
   });
 }
 
-
-const firebaseAdmin =
-  obterFirebaseAdmin();
-
-const adminAuth =
-  getAuth(firebaseAdmin);
-
-const adminDb =
-  getFirestore(firebaseAdmin);
-
+/*
+ * ============================================================
+ * TESTE DA API
+ * ============================================================
+ */
 
 export async function GET() {
   return NextResponse.json({
@@ -55,24 +72,44 @@ export async function GET() {
   });
 }
 
+/*
+ * ============================================================
+ * RESERVAR PRESENTE
+ * ============================================================
+ */
 
 export async function POST(
   request: Request
 ) {
-
   try {
+    /*
+     * ========================================================
+     * INICIALIZAR FIREBASE
+     * ========================================================
+     *
+     * O Firebase Admin só é inicializado quando
+     * a API realmente recebe uma requisição.
+     */
+
+    const firebaseAdmin =
+      obterFirebaseAdmin();
+
+    const adminAuth =
+      getAuth(firebaseAdmin);
+
+    const adminDb =
+      getFirestore(firebaseAdmin);
 
     /*
-     * ============================================================
+     * ========================================================
      * VERIFICAR AUTENTICAÇÃO
-     * ============================================================
+     * ========================================================
      */
 
     const autorizacao =
       request.headers.get(
         "authorization"
       );
-
 
     if (!autorizacao) {
       return NextResponse.json(
@@ -85,7 +122,6 @@ export async function POST(
         }
       );
     }
-
 
     if (
       !autorizacao.startsWith(
@@ -103,45 +139,72 @@ export async function POST(
       );
     }
 
+    /*
+     * ========================================================
+     * EXTRAIR TOKEN
+     * ========================================================
+     */
 
     const token =
       autorizacao.substring(7);
 
+    /*
+     * ========================================================
+     * VERIFICAR TOKEN NO FIREBASE
+     * ========================================================
+     */
 
     const tokenVerificado =
       await adminAuth.verifyIdToken(
         token
       );
 
-
     const uid =
       tokenVerificado.uid;
 
-
     /*
-     * ============================================================
+     * ========================================================
      * RECEBER DADOS
-     * ============================================================
+     * ========================================================
      */
 
     const corpo =
       await request.json();
-
 
     const presenteId =
       String(
         corpo.presenteId
       );
 
-
     const acessarReserva =
       corpo.acessarReserva === true;
 
+    /*
+     * ========================================================
+     * VALIDAR ID DO PRESENTE
+     * ========================================================
+     */
+
+    if (
+      !presenteId ||
+      presenteId === "undefined" ||
+      presenteId === "null"
+    ) {
+      return NextResponse.json(
+        {
+          erro:
+            "PRESENTE_NAO_EXISTE",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     /*
-     * ============================================================
+     * ========================================================
      * REFERÊNCIAS DO FIRESTORE
-     * ============================================================
+     * ========================================================
      */
 
     const presenteRef =
@@ -149,26 +212,21 @@ export async function POST(
         .collection("presentes")
         .doc(presenteId);
 
-
     const reservaRef =
       adminDb
         .collection("reservas")
         .doc(presenteId);
 
-
     /*
-     * ============================================================
+     * ========================================================
      * BUSCAR O PRESENTE
-     * ============================================================
+     * ========================================================
      *
-     * Agora o link de compra vem diretamente do Firestore.
-     *
-     * Isso permite trabalhar com todos os 84 presentes.
+     * O link de compra vem diretamente do Firestore.
      */
 
     const presenteSnapshot =
       await presenteRef.get();
-
 
     if (
       !presenteSnapshot.exists
@@ -184,19 +242,16 @@ export async function POST(
       );
     }
 
-
     const presente =
       presenteSnapshot.data();
-
 
     const linkCompra =
       presente?.linkCompra;
 
-
     /*
-     * ============================================================
+     * ========================================================
      * VERIFICAR LINK DE COMPRA
-     * ============================================================
+     * ========================================================
      */
 
     if (
@@ -215,20 +270,21 @@ export async function POST(
       );
     }
 
-
     /*
-     * ============================================================
-     * ACESSAR UMA RESERVA QUE JÁ PERTENCE AO USUÁRIO
-     * ============================================================
+     * ========================================================
+     * ACESSAR UMA RESERVA EXISTENTE
+     * ========================================================
+     *
+     * Se o usuário já reservou esse presente,
+     * permitimos que ele acesse novamente
+     * o próprio link de compra.
      */
 
     if (
       acessarReserva
     ) {
-
       const reservaSnapshot =
         await reservaRef.get();
-
 
       if (
         !reservaSnapshot.exists
@@ -244,10 +300,8 @@ export async function POST(
         );
       }
 
-
       const reserva =
         reservaSnapshot.data();
-
 
       /*
        * Só liberamos o link se a reserva
@@ -268,7 +322,6 @@ export async function POST(
         );
       }
 
-
       return NextResponse.json({
         sucesso: true,
         presenteId,
@@ -276,21 +329,23 @@ export async function POST(
       });
     }
 
-
     /*
-     * ============================================================
+     * ========================================================
      * NOVA RESERVA
-     * ============================================================
+     * ========================================================
      */
 
     await adminDb.runTransaction(
       async (transaction) => {
+        /*
+         * Buscar novamente o presente
+         * dentro da transação.
+         */
 
         const presenteSnapshot =
           await transaction.get(
             presenteRef
           );
-
 
         if (
           !presenteSnapshot.exists
@@ -300,15 +355,16 @@ export async function POST(
           );
         }
 
-
         const presente =
           presenteSnapshot.data();
 
-
         /*
-         * Verifica novamente dentro
-         * da transação se o presente
-         * já foi reservado.
+         * Verifica dentro da transação
+         * se o presente já foi reservado.
+         *
+         * Isso evita que duas pessoas
+         * reservem o mesmo presente
+         * simultaneamente.
          */
 
         if (
@@ -318,7 +374,6 @@ export async function POST(
             "PRESENTE_JA_RESERVADO"
           );
         }
-
 
         /*
          * Marca o presente como reservado.
@@ -331,7 +386,6 @@ export async function POST(
           }
         );
 
-
         /*
          * Cria a reserva vinculada
          * ao usuário.
@@ -341,21 +395,22 @@ export async function POST(
           reservaRef,
           {
             uid,
+
             presenteId,
+
             linkCompra,
+
             reservadoEm:
               FieldValue.serverTimestamp(),
           }
         );
-
       }
     );
 
-
     /*
-     * ============================================================
+     * ========================================================
      * RESERVA CONCLUÍDA
-     * ============================================================
+     * ========================================================
      */
 
     return NextResponse.json({
@@ -364,19 +419,16 @@ export async function POST(
       linkCompra,
     });
 
-
   } catch (erro) {
-
     console.error(
       "Erro ao reservar presente:",
       erro
     );
 
-
     /*
-     * ============================================================
+     * ========================================================
      * PRESENTE JÁ RESERVADO
-     * ============================================================
+     * ========================================================
      */
 
     if (
@@ -384,7 +436,6 @@ export async function POST(
       erro.message ===
         "PRESENTE_JA_RESERVADO"
     ) {
-
       return NextResponse.json(
         {
           erro:
@@ -394,14 +445,12 @@ export async function POST(
           status: 409,
         }
       );
-
     }
 
-
     /*
-     * ============================================================
+     * ========================================================
      * PRESENTE NÃO EXISTE
-     * ============================================================
+     * ========================================================
      */
 
     if (
@@ -409,7 +458,6 @@ export async function POST(
       erro.message ===
         "PRESENTE_NAO_EXISTE"
     ) {
-
       return NextResponse.json(
         {
           erro:
@@ -419,14 +467,12 @@ export async function POST(
           status: 404,
         }
       );
-
     }
 
-
     /*
-     * ============================================================
+     * ========================================================
      * LINK NÃO ENCONTRADO
-     * ============================================================
+     * ========================================================
      */
 
     if (
@@ -434,7 +480,6 @@ export async function POST(
       erro.message ===
         "LINK_COMPRA_NAO_ENCONTRADO"
     ) {
-
       return NextResponse.json(
         {
           erro:
@@ -444,14 +489,12 @@ export async function POST(
           status: 404,
         }
       );
-
     }
 
-
     /*
-     * ============================================================
+     * ========================================================
      * ERRO GENÉRICO
-     * ============================================================
+     * ========================================================
      */
 
     return NextResponse.json(
@@ -463,7 +506,5 @@ export async function POST(
         status: 500,
       }
     );
-
   }
-
 }

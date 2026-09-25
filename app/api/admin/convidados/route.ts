@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { readFileSync } from "fs";
-import path from "path";
-
 import {
   cert,
   getApps,
   initializeApp,
 } from "firebase-admin/app";
 
-import {
-  getAuth,
-} from "firebase-admin/auth";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
-import {
-  getFirestore,
-} from "firebase-admin/firestore";
-
+export const dynamic = "force-dynamic";
 
 /*
  * ============================================================
@@ -25,44 +18,28 @@ import {
  */
 
 function obterFirebaseAdmin() {
-
-  if (
-    getApps().length > 0
-  ) {
-
+  if (getApps().length > 0) {
     return getApps()[0];
   }
 
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-    const serviceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    };
-
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Variáveis do Firebase Admin não configuradas."
+    );
+  }
 
   return initializeApp({
-    credential:
-      cert(serviceAccount),
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, "\n"),
+    }),
   });
 }
-
-
-const firebaseAdmin =
-  obterFirebaseAdmin();
-
-
-const adminAuth =
-  getAuth(
-    firebaseAdmin
-  );
-
-
-const adminDb =
-  getFirestore(
-    firebaseAdmin
-  );
-
 
 /*
  * ============================================================
@@ -70,34 +47,31 @@ const adminDb =
  * ============================================================
  */
 
-export async function GET(
-  request: Request
-) {
-
+export async function GET(request: Request) {
   try {
+    /*
+     * Inicializamos o Firebase somente quando
+     * a API realmente for chamada.
+     */
+    const firebaseAdmin = obterFirebaseAdmin();
+
+    const adminAuth = getAuth(firebaseAdmin);
+    const adminDb = getFirestore(firebaseAdmin);
 
     /*
-     * Pegamos o token enviado
-     * pelo navegador.
+     * Pegamos o token enviado pelo navegador.
      */
-
-    const autorizacao =
-      request.headers.get(
-        "authorization"
-      );
-
+    const autorizacao = request.headers.get(
+      "authorization"
+    );
 
     if (
       !autorizacao ||
-      !autorizacao.startsWith(
-        "Bearer "
-      )
+      !autorizacao.startsWith("Bearer ")
     ) {
-
       return NextResponse.json(
         {
-          erro:
-            "NAO_AUTENTICADO",
+          erro: "NAO_AUTENTICADO",
         },
         {
           status: 401,
@@ -105,46 +79,29 @@ export async function GET(
       );
     }
 
-
     /*
      * Extraímos o token.
      */
-
-    const token =
-      autorizacao.substring(7);
-
+    const token = autorizacao.substring(7);
 
     /*
-     * O Firebase Admin verifica
-     * se o token é válido.
+     * O Firebase Admin verifica se o token é válido.
      */
-
-    const usuario =
-      await adminAuth.verifyIdToken(
-        token
-      );
-
+    const usuario = await adminAuth.verifyIdToken(token);
 
     /*
-     * Recuperamos o UID do
-     * administrador.
+     * Recuperamos o UID do administrador.
      */
-
-    const adminUid =
-      process.env.ADMIN_UID;
-
+    const adminUid = process.env.ADMIN_UID;
 
     if (!adminUid) {
-
       console.error(
         "ADMIN_UID não configurado."
       );
 
-
       return NextResponse.json(
         {
-          erro:
-            "ADMIN_NAO_CONFIGURADO",
+          erro: "ADMIN_NAO_CONFIGURADO",
         },
         {
           status: 500,
@@ -152,20 +109,14 @@ export async function GET(
       );
     }
 
-
     /*
-     * Verificamos se quem está
-     * fazendo a requisição é o admin.
+     * Verificamos se quem está fazendo
+     * a requisição é o administrador.
      */
-
-    if (
-      usuario.uid !== adminUid
-    ) {
-
+    if (usuario.uid !== adminUid) {
       return NextResponse.json(
         {
-          erro:
-            "ACESSO_NEGADO",
+          erro: "ACESSO_NEGADO",
         },
         {
           status: 403,
@@ -173,86 +124,62 @@ export async function GET(
       );
     }
 
+    /*
+     * Buscamos os convidados no Firestore.
+     */
+    const snapshot = await adminDb
+      .collection("convidados")
+      .get();
 
     /*
-     * Agora buscamos os convidados
-     * diretamente no Firestore.
+     * Transformamos os documentos em objetos simples.
      */
+    const convidados = snapshot.docs.map(
+      (documento) => {
+        const dados = documento.data();
 
-    const snapshot =
-      await adminDb
-        .collection(
-          "convidados"
-        )
-        .get();
+        return {
+          id: documento.id,
 
+          nome: dados.nome || "",
+
+          quantidade:
+            dados.quantidade || 0,
+
+          acompanhantes:
+            Array.isArray(
+              dados.acompanhantes
+            )
+              ? dados.acompanhantes
+              : [],
+
+          uid: dados.uid || "",
+
+          criadoEm: dados.criadoEm
+            ? dados.criadoEm
+                .toDate()
+                .toISOString()
+            : null,
+        };
+      }
+    );
 
     /*
-     * Transformamos os documentos
-     * em objetos simples.
+     * Retornamos os convidados.
      */
-
-    const convidados =
-      snapshot.docs.map(
-        (documento) => {
-
-          const dados =
-            documento.data();
-
-
-          return {
-
-            id:
-              documento.id,
-
-            nome:
-              dados.nome || "",
-
-            quantidade:
-              dados.quantidade || 0,
-
-            acompanhantes:
-              Array.isArray(
-                dados.acompanhantes
-              )
-                ? dados.acompanhantes
-                : [],
-
-            uid:
-              dados.uid || "",
-
-            criadoEm:
-              dados.criadoEm
-                ? dados.criadoEm
-                    .toDate()
-                    .toISOString()
-                : null,
-          };
-        }
-      );
-
-
-    /*
-     * Retornamos os convidados
-     * para o painel.
-     */
-
     return NextResponse.json({
       convidados,
     });
 
   } catch (erro) {
-
     console.error(
       "Erro ao buscar convidados:",
       erro
     );
 
-
     return NextResponse.json(
       {
-        erro:
-          "ERRO_AO_BUSCAR_CONVIDADOS",
+        erro: "ERRO_AO_BUSCAR_CONVIDADOS",
       },
       {
         status: 500,

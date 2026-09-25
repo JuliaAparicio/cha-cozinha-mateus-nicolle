@@ -1,114 +1,100 @@
 import { NextResponse } from "next/server";
 
-import { readFileSync } from "fs";
-import path from "path";
-
 import {
   cert,
   getApps,
   initializeApp,
 } from "firebase-admin/app";
 
-import {
-  getAuth,
-} from "firebase-admin/auth";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
-import {
-  getFirestore,
-} from "firebase-admin/firestore";
+export const dynamic = "force-dynamic";
 
+/*
+ * ============================================================
+ * INICIALIZAÇÃO DO FIREBASE ADMIN
+ * ============================================================
+ */
 
 function obterFirebaseAdmin() {
-
-  if (
-    getApps().length > 0
-  ) {
-
+  if (getApps().length > 0) {
     return getApps()[0];
   }
 
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-    const serviceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    };
-    
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Variáveis do Firebase Admin não configuradas."
+    );
+  }
 
   return initializeApp({
-    credential:
-      cert(serviceAccount),
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, "\n"),
+    }),
   });
 }
 
+/*
+ * ============================================================
+ * NOMES DOS PRESENTES
+ * ============================================================
+ */
 
-const firebaseAdmin =
-  obterFirebaseAdmin();
-
-
-const adminAuth =
-  getAuth(
-    firebaseAdmin
-  );
-
-
-const adminDb =
-  getFirestore(
-    firebaseAdmin
-  );
-
-
-const nomesPresentes:
-  Record<string, string> = {
-
-  "1":
-    "Afiador de Facas",
-
-  "2":
-    "Kit de Formas e Assadeiras",
-
-  "3":
-    "Jogo de Bowls Inox - 5 Peças",
-
-  "4":
-    "Batedor Manual / Fouet",
-
-  "5":
-    "Centrífuga de Salada",
-
-  "6":
-    "Coador de Café Inox",
+const nomesPresentes: Record<string, string> = {
+  "1": "Afiador de Facas",
+  "2": "Kit de Formas e Assadeiras",
+  "3": "Jogo de Bowls Inox - 5 Peças",
+  "4": "Batedor Manual / Fouet",
+  "5": "Centrífuga de Salada",
+  "6": "Coador de Café Inox",
 };
 
+/*
+ * ============================================================
+ * BUSCAR PRESENTES
+ * ============================================================
+ */
 
-export async function GET(
-  request: Request
-) {
-
+export async function GET(request: Request) {
   try {
-
     /*
-     * Verifica o token enviado
-     * pelo painel administrativo.
+     * ========================================================
+     * INICIALIZAR FIREBASE
+     * ========================================================
+     *
+     * O Firebase Admin é inicializado somente quando
+     * a rota realmente recebe uma requisição.
      */
 
-    const autorizacao =
-      request.headers.get(
-        "authorization"
-      );
+    const firebaseAdmin = obterFirebaseAdmin();
 
+    const adminAuth = getAuth(firebaseAdmin);
+    const adminDb = getFirestore(firebaseAdmin);
+
+    /*
+     * ========================================================
+     * VERIFICAR TOKEN
+     * ========================================================
+     */
+
+    const autorizacao = request.headers.get(
+      "authorization"
+    );
 
     if (
       !autorizacao ||
-      !autorizacao.startsWith(
-        "Bearer "
-      )
+      !autorizacao.startsWith("Bearer ")
     ) {
-
       return NextResponse.json(
         {
-          erro:
-            "NAO_AUTENTICADO",
+          erro: "NAO_AUTENTICADO",
         },
         {
           status: 401,
@@ -116,42 +102,31 @@ export async function GET(
       );
     }
 
-
     /*
-     * Remove "Bearer " e verifica
-     * o token no Firebase.
+     * Remove "Bearer " e verifica o token no Firebase.
      */
 
-    const token =
-      autorizacao.substring(7);
-
+    const token = autorizacao.substring(7);
 
     const usuario =
-      await adminAuth.verifyIdToken(
-        token
-      );
-
+      await adminAuth.verifyIdToken(token);
 
     /*
-     * Confere se o UID pertence
-     * ao administrador.
+     * ========================================================
+     * VERIFICAR ADMINISTRADOR
+     * ========================================================
      */
 
-    const adminUid =
-      process.env.ADMIN_UID;
-
+    const adminUid = process.env.ADMIN_UID;
 
     if (!adminUid) {
-
       console.error(
         "ADMIN_UID não configurado."
       );
 
-
       return NextResponse.json(
         {
-          erro:
-            "ADMIN_NAO_CONFIGURADO",
+          erro: "ADMIN_NAO_CONFIGURADO",
         },
         {
           status: 500,
@@ -159,15 +134,10 @@ export async function GET(
       );
     }
 
-
-    if (
-      usuario.uid !== adminUid
-    ) {
-
+    if (usuario.uid !== adminUid) {
       return NextResponse.json(
         {
-          erro:
-            "ACESSO_NEGADO",
+          erro: "ACESSO_NEGADO",
         },
         {
           status: 403,
@@ -175,45 +145,43 @@ export async function GET(
       );
     }
 
-
     /*
-     * Busca todos os presentes.
+     * ========================================================
+     * BUSCAR TODOS OS PRESENTES
+     * ========================================================
      */
 
     const presentesSnapshot =
       await adminDb
-        .collection(
-          "presentes"
-        )
+        .collection("presentes")
         .get();
 
-
     /*
-     * Busca todas as reservas.
+     * ========================================================
+     * BUSCAR TODAS AS RESERVAS
+     * ========================================================
      */
 
     const reservasSnapshot =
       await adminDb
-        .collection(
-          "reservas"
-        )
+        .collection("reservas")
         .get();
 
-
     /*
-     * Busca todos os convidados.
+     * ========================================================
+     * BUSCAR TODOS OS CONVIDADOS
+     * ========================================================
      */
 
     const convidadosSnapshot =
       await adminDb
-        .collection(
-          "convidados"
-        )
+        .collection("convidados")
         .get();
 
-
     /*
-     * Criamos um mapa dos convidados.
+     * ========================================================
+     * MAPA DOS CONVIDADOS
+     * ========================================================
      *
      * A chave será o UID.
      *
@@ -223,74 +191,60 @@ export async function GET(
      * UID 456 -> João Souza
      */
 
-    const nomesPorUid:
-      Record<string, string> = {};
-
+    const nomesPorUid: Record<string, string> = {};
 
     convidadosSnapshot.docs.forEach(
       (documento) => {
-
         const dados =
           documento.data();
 
-
-        if (
-          dados.uid
-        ) {
-
-          nomesPorUid[
-            dados.uid
-          ] =
+        if (dados.uid) {
+          nomesPorUid[dados.uid] =
             dados.nome ||
             "Convidado";
         }
       }
     );
 
-
     /*
-     * Criamos um mapa das reservas.
+     * ========================================================
+     * MAPA DAS RESERVAS
+     * ========================================================
      */
 
-    const reservasPorPresente:
-      Record<string, any> = {};
-
+    const reservasPorPresente: Record<
+      string,
+      any
+    > = {};
 
     reservasSnapshot.docs.forEach(
       (documento) => {
-
         const dados =
           documento.data();
-
 
         const uid =
           dados.uid || "";
 
-
         reservasPorPresente[
           documento.id
         ] = {
-
           presenteId:
             dados.presenteId ||
             documento.id,
 
-          uid:
-            uid,
+          uid: uid,
 
           nomeConvidado:
             nomesPorUid[uid] ||
             "Convidado",
 
           /*
-           * DIAGNÓSTICO
+           * Diagnóstico:
            *
-           * true =
-           * encontramos esse UID
+           * true = encontramos esse UID
            * na coleção convidados.
            *
-           * false =
-           * não encontramos.
+           * false = não encontramos.
            */
 
           uidEncontrado:
@@ -299,7 +253,8 @@ export async function GET(
             ),
 
           linkCompra:
-            dados.linkCompra || "",
+            dados.linkCompra ||
+            "",
 
           reservadoEm:
             dados.reservadoEm
@@ -311,27 +266,24 @@ export async function GET(
       }
     );
 
-
     /*
-     * Montamos a resposta final.
+     * ========================================================
+     * MONTAR RESPOSTA FINAL
+     * ========================================================
      */
 
     const presentes =
       presentesSnapshot.docs.map(
         (documento) => {
-
           const dados =
             documento.data();
-
 
           const reserva =
             reservasPorPresente[
               documento.id
             ];
 
-
           return {
-
             id:
               documento.id,
 
@@ -350,9 +302,13 @@ export async function GET(
         }
       );
 
+    /*
+     * ========================================================
+     * RETORNAR RESULTADO
+     * ========================================================
+     */
 
     return NextResponse.json({
-
       presentes,
 
       total:
@@ -369,16 +325,13 @@ export async function GET(
           (presente) =>
             !presente.reservado
         ).length,
-
     });
 
   } catch (erro) {
-
     console.error(
       "Erro ao buscar presentes:",
       erro
     );
-
 
     return NextResponse.json(
       {
