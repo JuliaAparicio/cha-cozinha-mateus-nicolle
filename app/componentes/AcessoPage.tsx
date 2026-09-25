@@ -187,8 +187,8 @@ export default function AcessoPage({
 
           <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-[#72736b]">
             {modo === "login"
-              ? "Entre para acessar sua confirmação e os presentes que você escolheu."
-              : "Crie seu acesso para confirmar sua presença e guardar suas escolhas."}
+              ? "Entre para acessar sua confirmação."
+              : "Crie seu acesso para confirmar sua presença e acessar a lista de presentes."}
           </p>
         </div>
 

@@ -13,7 +13,7 @@ export default function HomePage({ onContinuar }: HomePageProps) {
           <img
             src="/foto%20casal/casal_pedido.jpeg"
             alt="Nicolle e Mateus"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-[65%_center] md:object-center"
           />
 
           {/* Sobreposição para melhorar a leitura */}
