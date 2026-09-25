@@ -1,36 +1,166 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💍 Chá de Cozinha — Nicolle & Mateus
 
-## Getting Started
+Site desenvolvido para o Chá de Cozinha de Nicolle e Mateus, com uma experiência digital completa para convidados, confirmação de presença e gerenciamento da lista de presentes.
 
-First, run the development server:
+O projeto foi desenvolvido com foco em uma interface elegante, responsiva e intuitiva, além da integração com Firebase para gerenciamento dos dados e reservas de presentes.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Sobre o projeto
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+O objetivo do projeto foi desenvolver uma aplicação web para centralizar as informações do evento e facilitar a interação dos convidados.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+A aplicação permite que o convidado:
 
-## Learn More
+- 💌 Acesse as informações do evento
+- 📅 Consulte data, horário e local
+- 📍 Acesse a localização pelo Google Maps ou Waze
+- 👤 Crie uma conta utilizando e-mail e senha
+- ✅ Confirme sua presença
+- 👥 Informe acompanhantes
+- 🎁 Visualize a lista de presentes
+- 🔒 Reserve um presente
+- 🛒 Acesse diretamente o link de compra
+- 🔄 Consulte seus presentes reservados
 
-To learn more about Next.js, take a look at the following resources:
+Além da área dos convidados, o projeto possui uma área administrativa para gerenciamento das informações do evento.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🎨 Design
 
-## Deploy on Vercel
+A interface foi desenvolvida seguindo uma identidade visual elegante e minimalista, utilizando:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Verde oliva
+- Tons off-white
+- Dourado
+- Tipografia sofisticada
+- Elementos inspirados em folhas e natureza
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+O layout foi desenvolvido com abordagem **mobile-first**, garantindo uma experiência adequada em diferentes tamanhos de tela.
+
+---
+
+## 🚀 Funcionalidades
+
+### 👰 Área do convidado
+
+- Tela de introdução
+- Informações do evento
+- Confirmação de presença
+- Cadastro de acompanhantes
+- Lista de presentes
+- Detalhes dos presentes
+- Reserva de presentes
+- Controle de presentes já reservados
+- Acesso ao link de compra
+- Identificação das reservas do próprio usuário
+
+### 🎁 Sistema de reservas
+
+O sistema utiliza o Firebase para controlar a disponibilidade dos presentes.
+
+Quando um convidado reserva um presente:
+
+1. O presente é identificado pelo seu ID.
+2. O sistema verifica se ele ainda está disponível.
+3. A reserva é registrada.
+4. O presente passa a ser marcado como reservado.
+5. O link de compra correspondente é disponibilizado ao convidado.
+
+O processo utiliza transações no Firestore para evitar conflitos entre reservas simultâneas.
+
+### 🔐 Autenticação
+
+A aplicação utiliza **Firebase Authentication** com autenticação por:
+
+- E-mail
+- Senha
+
+Cada convidado possui um identificador próprio, permitindo relacionar sua confirmação de presença e suas reservas.
+
+### 🛠️ Área administrativa
+
+O projeto também possui uma área administrativa com:
+
+- Login administrativo
+- Consulta dos convidados
+- Consulta dos presentes
+- Visualização das reservas
+- Exportação das informações para Excel
+
+---
+
+## 🧩 Tecnologias utilizadas
+
+### Front-end
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- HTML5
+- CSS3
+
+### Back-end / Serviços
+
+- Firebase Authentication
+- Firebase Firestore
+- Firebase Admin SDK
+- API Routes do Next.js
+
+### Ferramentas
+
+- Git
+- GitHub
+- Figma
+- Visual Studio Code
+- npm
+
+---
+
+## 📁 Estrutura do projeto
+
+```text
+cha-cozinha-mateus-nicolle/
+│
+├── app/
+│   ├── admin/
+│   │   └── page.tsx
+│   │
+│   ├── api/
+│   │   ├── admin/
+│   │   └── reservar/
+│   │
+│   ├── componentes/
+│   │   ├── AcessoPage.tsx
+│   │   ├── ConfirmacaoPage.tsx
+│   │   ├── EventoPage.tsx
+│   │   ├── HomePage.tsx
+│   │   ├── IntroducaoPresentesPage.tsx
+│   │   ├── PresenteModal.tsx
+│   │   ├── PresentesPage.tsx
+│   │   └── SucessoPage.tsx
+│   │
+│   ├── lib/
+│   │   ├── configurarPresentes.ts
+│   │   ├── convidados.ts
+│   │   ├── firebase.ts
+│   │   └── presentes.ts
+│   │
+│   ├── data/
+│   ├── types/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+│
+├── public/
+│   ├── foto casal/
+│   └── presentes/
+│
+├── scripts/
+│   ├── atualizar-imagens.js
+│   └── importar-presentes.js
+│
+├── package.json
+└── README.md
